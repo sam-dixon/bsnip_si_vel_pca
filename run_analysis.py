@@ -4,7 +4,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 from spectral_lines import Measure, Spl, MissingDataError
 from sklearn.decomposition import FactorAnalysis
-from tqdm import tqdm
 from scipy.optimize import curve_fit
 from scipy.interpolate import UnivariateSpline as US
 from scipy.interpolate import interp1d
@@ -64,7 +63,7 @@ def measure_BSNIP_spline_velocities():
     print('Measuring velocities with a spline')
     data = {}
     wave, profiles, sne = pickle.load(open('BSNIP_SiII6355_profiles.pkl', 'rb'))
-    for profile, sn in tqdm(zip(profiles, sne)):
+    for profile, sn in zip(profiles, sne):
         spec_data = {}
         var = profile
         try:
@@ -118,7 +117,7 @@ def gen_WFIRST(z=1, n=10):
     wfirst_data = {}
     print('Generating WFIRST dataset')
     data = pickle.load(open('BSNIP_init_data.pkl', 'rb'))
-    for sn, sn_z in tqdm(np.loadtxt('manifest_clean.txt', dtype=str)):
+    for sn, sn_z in np.loadtxt('manifest_clean.txt', dtype=str):
         spec = np.loadtxt(sn, unpack=True)
         wave, flux = spec[:2]
         wave = wave/(1.+float(sn_z))
@@ -181,7 +180,7 @@ class BSNIPModel(object):
         profiles = []
         sne = []
         print('Getting profiles from BSNIP training set')
-        for sn, z in tqdm(np.loadtxt('manifest_clean.txt', dtype=str)):
+        for sn, z in np.loadtxt('manifest_clean.txt', dtype=str):
             spec = np.loadtxt(sn, unpack=True)
             w, f = spec[:2]
             w = w/(1.+float(z))
@@ -241,7 +240,7 @@ class EvalBSNIP(object):
     
             # Calculate velocities from the model
             print('Measuring velocities with factors')
-            for sn in tqdm(self.data.values()):
+            for sn in self.data.values():
                 vrec = self.vel_from_reconstruction(sn['load0'], sn['load1'], sn['load2'])
                 sn['vmod'] = vrec
     
@@ -264,7 +263,7 @@ class EvalBSNIP(object):
         Fit the model to the data set.
         """
         print('Fitting the FA model to the evalution dataset')
-        for sn, profile in tqdm(zip(self.model.sne, self.model.profiles)):
+        for sn, profile in zip(self.model.sne, self.model.profiles):
             w, f, v = Spl([self.model.wave, profile, profile], 
                           sim=True, norm=None).get_feature_spec()
             fit_w, fit_f, popt = self.fit_model(w, f, v, return_popt=True)
@@ -300,7 +299,7 @@ class WFIRSTEval(object):
 
         # Calculate velocities from the model
         print('Measuring velocities from factors')
-        for sn in tqdm(self.data.values()):
+        for sn in self.data.values():
             sn['vmod'] = []
             for l0, l1, l2 in zip(sn['load0'], sn['load1'], sn['load2']):
                 vrec = self.vel_from_reconstruction(l0, l1, l2)
@@ -322,7 +321,7 @@ class WFIRSTEval(object):
         Fit the model to the data set.
         """
         print('Fitting the FA model to the evalution dataset')
-        for sn in tqdm(self.data.values()):
+        for sn in self.data.values():
             sn['load0'] = []
             sn['load1'] = []
             sn['load2'] = []
