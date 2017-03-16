@@ -1,4 +1,3 @@
-import os
 import pickle
 import numpy as np
 import matplotlib.pyplot as plt
@@ -234,16 +233,16 @@ class EvalBSNIP(object):
                 self.data = pickle.load(open(fname, 'rb'))
             except IOError:
                 self.data = measure_BSNIP_spline_velocities()
-    
+
             # Fit dataset
             self.fit_dataset()
-    
+
             # Calculate velocities from the model
             print('Measuring velocities with factors')
             for sn in self.data.values():
                 vrec = self.vel_from_reconstruction(sn['load0'], sn['load1'], sn['load2'])
                 sn['vmod'] = vrec
-    
+
             # Save results
             pickle.dump(self.data, open('eval.pkl', 'wb'))
 
@@ -264,7 +263,7 @@ class EvalBSNIP(object):
         """
         print('Fitting the FA model to the evalution dataset')
         for sn, profile in zip(self.model.sne, self.model.profiles):
-            w, f, v = Spl([self.model.wave, profile, profile], 
+            w, f, v = Spl([self.model.wave, profile, profile],
                           sim=True, norm=None).get_feature_spec()
             fit_w, fit_f, popt = self.fit_model(w, f, v, return_popt=True)
             self.data[sn]['load0'] = popt[0]
@@ -340,6 +339,74 @@ class WFIRSTEval(object):
         recon_spec = self.model.fa_model(wave, *popt)
         recon_vel = vel_from_spec(wave, recon_spec)
         return recon_vel
+
+
+def spline_norm_example_plot(sn_name='2005bc'):
+    for sn, z in np.loadtxt('manifest_clean.txt', dtype=str):
+        if sn_name in sn:
+            plt.figure(figsize=(8, 5))
+            spec = np.loadtxt(sn, unpack=True)
+            wave, flux = spec[:2]
+            wave = wave/(1.+float(z))
+            plt.subplot(211)
+            plt.plot(wave, flux, label='Observed')
+            m = Measure([wave, flux, flux], sim=True)
+            ws, fs, vs = m.get_snid_norm_spec()
+            plt.plot(wave, flux/fs, label='Spline pseudo-cont.')
+            plt.ylabel('Observed flux')
+            plt.legend()
+            plt.subplot(212)
+            plt.plot(ws, fs, label='Full spectrum')
+            plt.plot(*m.get_feature_spec()[:2], label='Si II feature')
+            plt.xlabel('Wavelength [$\AA$]')
+            plt.ylabel('Normalized flux')
+            plt.legend()
+            plt.suptitle('SN'+sn_name)
+    plt.savefig('example_norm.pdf', bbox_inches='tight')
+    plt.close()
+
+
+def example_reconstruction(model, sn_list=['2005lz', '2005ao', '2004dt']):
+    plt.figure(figsize=(12, 4))
+    for i in range(3):
+        for sn, profile in zip(model.sne, model.profiles):
+            plt.subplot(1, 3, i+1)
+            if sn_list[i] in sn:
+                plt.plot(model.wave, profile, label='Observed')
+                popt, cov = curve_fit(model.fa_model, model.wave, profile,
+                                      p0=[0, 0, 0])
+                plt.plot(model.wave, model.fa_model(model.wave, *popt), 
+                         label='Reconstructed')
+                plt.title('SN'+sn_list[i])
+                plt.xlabel('Wavelength [$\AA$]')
+    plt.subplot(131); plt.ylabel('Normalized flux')
+    plt.subplot(133); plt.legend()
+    plt.savefig('example_reconstruction.pdf', bbox_inches='tight')
+    plt.close()
+
+
+def example_wf_reconstruction(wfeval, sn_list=['2005lz', '2005ao', '2004dt']):
+    plt.figure(figsize=(12, 4))
+    for i in range(3):
+        for sn, profile in zip(wfeval.model.sne, wfeval.model.profiles):
+            plt.subplot(1, 3, i+1)
+            if sn_list[i] in sn:
+                plt.plot(wfeval.model.wave, profile, label='Observed')
+                w, f, v = wfeval.data[sn]['spectra'][0]
+                plt.errorbar(w, f, yerr=np.sqrt(v), linewidth=0, elinewidth=1.5,
+                             marker='.', label='WFIRST')
+                popt = [wfeval.data[sn]['load0'][0],
+                        wfeval.data[sn]['load1'][0],
+                        wfeval.data[sn]['load2'][0]]
+                plt.plot(wfeval.model.wave, 
+                         wfeval.model.fa_model(wfeval.model.wave, *popt), 
+                         label='Reconstructed')
+                plt.title('SN'+sn_list[i])
+                plt.xlabel('Wavelength [$\AA$]')
+    plt.subplot(131); plt.ylabel('Normalized flux')
+    plt.subplot(133); plt.legend()
+    plt.savefig('example_wfirst_recon.pdf', bbox_inches='tight')
+    plt.close()
 
 
 def model_spl_scatter_hist(data):
@@ -435,11 +502,15 @@ def correlation_plots(data):
     plt.savefig('correlations.pdf', bbox_inches='tight')
     plt.close()
 
+
 if __name__ == '__main__':
+    spline_norm_example_plot()
     mod = BSNIPModel()
+    example_reconstruction(mod)
     e = EvalBSNIP(mod)
     correlation_plots(e.data)
     model_spl_scatter_hist(e.data)
     wf = WFIRSTEval(mod)
+    example_wf_reconstruction(wf)
     wfirst_snf_spl_scatter_hist(wf.data)
 
