@@ -10,7 +10,7 @@ def resolution_plot(z=1):
     plt.plot(wfw, wfsn, 'o')
     plt.xlabel('Wavelength [$\AA$]')
     plt.ylabel('Flux/Flux uncertainty')
-    plt.savefig('resolution.pdf', bbox_inches='tight')
+    plt.savefig('resolution_z_{:0.2f}.pdf'.format(z), bbox_inches='tight')
     plt.close()
 
 
@@ -30,9 +30,10 @@ def example_spectrum(sn_name='2005bc', z=1):
     plt.ylabel('Flux')
     plt.legend()
     plt.title('SN'+sn_name)
-    plt.savefig('example_spectrum.pdf', bbox_inches='tight')
+    plt.savefig('example_spectrum_z_{:0.2f}.pdf'.format(z), bbox_inches='tight')
 
 
 if __name__ == '__main__':
-    resolution_plot()
-    example_spectrum()
+    for z in np.arange(0.5, 2.0, 0.5):
+        example_spectrum(z=z)
+        resolution_plot(z=z)

@@ -23,6 +23,19 @@ def hist_gauss_fit(data, nbins=10, p0=[1, 0, 1]):
     return popt
 
 
+SN_LIST = ['1989M',
+           '1994S',
+           '1995D',
+           '2002bo',
+           '2002de',
+           '2003U',
+           '2005de',
+           '2005el',
+           '2005eq',
+           '2005ki',
+           '2005lz',
+           '2006cj']
+
 # Physics functions ##########################################################
 
 
@@ -168,7 +181,7 @@ class BSNIPModel(object):
 
         # Dictionary to store data from the analysis
         try:
-            self.data = pickle.load(open('build_init_BSNIP_data.pkl', 'rb'))
+            self.data = pickle.load(open('BSNIP_init_data.pkl', 'rb'))
         except IOError:
             self.data = measure_BSNIP_spline_velocities()
 
@@ -285,24 +298,29 @@ class WFIRSTEval(object):
     def __init__(self, model, z=1):
         self.model = model
         self.z = z
-
-        # Load spectra and spline-measured velocities
         try:
-            fname = 'wfirst_data_z_{}.pkl'.format(z)
-            self.data = pickle.load(open(fname, 'rb'))
+            self.data = pickle.load(open('wfirst_eval.pkl', 'rb'))
         except IOError:
-            self.data = gen_WFIRST(z=z)
+            # Load spectra and spline-measured velocities
+            try:
+                fname = 'wfirst_data_z_{}.pkl'.format(z)
+                self.data = pickle.load(open(fname, 'rb'))
+            except IOError:
+                self.data = gen_WFIRST(z=z)
 
-        # Fit dataset
-        self.fit_dataset()
+            # Fit dataset
+            self.fit_dataset()
 
-        # Calculate velocities from the model
-        print('Measuring velocities from factors')
-        for sn in self.data.values():
-            sn['vmod'] = []
-            for l0, l1, l2 in zip(sn['load0'], sn['load1'], sn['load2']):
-                vrec = self.vel_from_reconstruction(l0, l1, l2)
-                sn['vmod'].append(vrec)
+            # Calculate velocities from the model
+            print('Measuring velocities from factors')
+            for sn in self.data.values():
+                sn['vmod'] = []
+                for l0, l1, l2 in zip(sn['load0'], sn['load1'], sn['load2']):
+                    vrec = self.vel_from_reconstruction(l0, l1, l2)
+                    sn['vmod'].append(vrec)
+
+            # Save results
+            pickle.dump(self.data, open('wfirst_eval.pkl', 'wb'))
 
     def fit_model(self, wave, flux, var, return_popt=False):
         """
@@ -366,30 +384,32 @@ def spline_norm_example_plot(sn_name='2005bc'):
     plt.close()
 
 
-def example_reconstruction(model, sn_list=['2005lz', '2005ao', '2004dt']):
-    plt.figure(figsize=(12, 4))
-    for i in range(3):
+def example_reconstruction(model, sn_list=SN_LIST):
+    plt.figure(figsize=(12, 12))
+    for i in range(12):
         for sn, profile in zip(model.sne, model.profiles):
-            plt.subplot(1, 3, i+1)
+            plt.subplot(4, 3, i+1)
             if sn_list[i] in sn:
                 plt.plot(model.wave, profile, label='Observed')
                 popt, cov = curve_fit(model.fa_model, model.wave, profile,
                                       p0=[0, 0, 0])
                 plt.plot(model.wave, model.fa_model(model.wave, *popt), 
                          label='Reconstructed')
-                plt.title('SN'+sn_list[i])
+                plt.text(6300, 0.7, 'SN'+sn_list[i])
                 plt.xlabel('Wavelength [$\AA$]')
-    plt.subplot(131); plt.ylabel('Normalized flux')
-    plt.subplot(133); plt.legend()
+    plt.subplot(4,3,1); plt.ylabel('Normalized flux')
+    plt.subplot(4,3,4); plt.ylabel('Normalized flux')
+    plt.subplot(4,3,7); plt.ylabel('Normalized flux')
+    plt.subplot(4,3,10); plt.ylabel('Normalized flux')
     plt.savefig('example_reconstruction.pdf', bbox_inches='tight')
     plt.close()
 
 
-def example_wf_reconstruction(wfeval, sn_list=['2005lz', '2005ao', '2004dt']):
-    plt.figure(figsize=(12, 4))
-    for i in range(3):
+def example_wf_reconstruction(wfeval, sn_list=SN_LIST):
+    plt.figure(figsize=(12, 12))
+    for i in range(12):
         for sn, profile in zip(wfeval.model.sne, wfeval.model.profiles):
-            plt.subplot(1, 3, i+1)
+            plt.subplot(4, 3, i+1)
             if sn_list[i] in sn:
                 plt.plot(wfeval.model.wave, profile, label='Observed')
                 w, f, v = wfeval.data[sn]['spectra'][0]
@@ -401,10 +421,12 @@ def example_wf_reconstruction(wfeval, sn_list=['2005lz', '2005ao', '2004dt']):
                 plt.plot(wfeval.model.wave, 
                          wfeval.model.fa_model(wfeval.model.wave, *popt), 
                          label='Reconstructed')
-                plt.title('SN'+sn_list[i])
+                plt.text(6300, 0.5, 'SN'+sn_list[i])
                 plt.xlabel('Wavelength [$\AA$]')
-    plt.subplot(131); plt.ylabel('Normalized flux')
-    plt.subplot(133); plt.legend()
+    plt.subplot(4,3,1); plt.ylabel('Normalized flux')
+    plt.subplot(4,3,4); plt.ylabel('Normalized flux')
+    plt.subplot(4,3,7); plt.ylabel('Normalized flux')
+    plt.subplot(4,3,10); plt.ylabel('Normalized flux')
     plt.savefig('example_wfirst_recon.pdf', bbox_inches='tight')
     plt.close()
 
