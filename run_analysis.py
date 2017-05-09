@@ -169,7 +169,7 @@ class BSNIPModel(object):
         self.wave = wave
         self.profiles = profiles
         self.sne = sne
-        self.interp_wave = np.arange(min(wave), max(wave), 0.01)
+        self.interp_wave = np.arange(min(wave), max(wave), 0.1)
 
         # Calculate factors that will go into model
         mean, f0, f1, f2 = self.smoothed_factors(self.wave, self.profiles,
@@ -287,7 +287,7 @@ class EvalBSNIP(object):
         """
         Get a velocity from a reconstruction
         """
-        wave = np.arange(min(self.model.wave), max(self.model.wave), 0.01)
+        wave = np.arange(min(self.model.wave), max(self.model.wave), 0.1)
         recon_spec = self.model.fa_model(wave, *popt)
         recon_vel = vel_from_spec(wave, recon_spec)
         return recon_vel
@@ -299,7 +299,8 @@ class WFIRSTEval(object):
         self.model = model
         self.z = z
         try:
-            self.data = pickle.load(open('wfirst_eval.pkl', 'rb'))
+            fname = 'wfirst_eval_z_{:0.2f}.pkl'.format(z)
+            self.data = pickle.load(open(fname, 'rb'))
         except IOError:
             # Load spectra and spline-measured velocities
             try:
@@ -353,7 +354,7 @@ class WFIRSTEval(object):
         """
         Get a velocity from a reconstruction
         """
-        wave = np.arange(min(self.model.wave), max(self.model.wave), 0.01)
+        wave = np.arange(min(self.model.wave), max(self.model.wave), 0.1)
         recon_spec = self.model.fa_model(wave, *popt)
         recon_vel = vel_from_spec(wave, recon_spec)
         return recon_vel
@@ -452,7 +453,7 @@ def model_spl_scatter_hist(data):
 
     vspl = np.array([sn['vspl'] for sn in data.values()])
     vmod = np.array([sn['vmod'] for sn in data.values()])
-    resids = vspl-vmod
+    resids = vmod-vspl
 
     axScatter.scatter(vspl, resids)
     axScatter.axhline(0, color='k', linestyle='--')
@@ -464,7 +465,41 @@ def model_spl_scatter_hist(data):
     print(np.std(resids))
 
 
-def wfirst_snf_spl_scatter_hist(data):
+def model_wfirst_scatter_hist(model_data, wf_data):
+    nullfmt = NullFormatter()
+    # definitions for the axes
+    left, width = 0.1, 0.65
+    bottom, height = 0.1, 0.65
+    bottom_h = left_h = left + width + 0.02
+
+    rect_scatter = [left, bottom, width, height]
+    rect_histy = [left_h, bottom, 0.2, height]
+
+    # start with a rectangular Figure
+    plt.figure(1, figsize=(8, 8))
+
+    axScatter = plt.axes(rect_scatter)
+    axHisty = plt.axes(rect_histy)
+
+    # no labels
+    axHisty.yaxis.set_major_formatter(nullfmt)
+
+    vinf = np.array([sn['vmod'] for sn in model_data.values()])
+    vmod = np.array([sn['vmod'] for sn in wf_data.values()]).T
+    resids = np.array([instance-vinf for instance in vmod]).flatten()
+
+    for i, instance in enumerate(vmod):
+        axScatter.scatter(vinf, instance-vinf, c='C0', label='Inst. {}'.format(i))
+    axScatter.axhline(0, color='k', linestyle='--')
+    axScatter.set_ylabel('Velocity residual [km/s]')
+    axScatter.set_xlabel('Velocity [km/s]')
+    axHisty.hist(resids, color='C0', orientation='horizontal')
+    # plt.savefig('wfirst_resids.pdf', bbox_inches='tight')
+    # plt.close()
+    print(np.std(resids))
+
+
+def wfirst_spl_scatter_hist(data):
     nullfmt = NullFormatter()
     # definitions for the axes
     left, width = 0.1, 0.65
@@ -526,13 +561,12 @@ def correlation_plots(data):
 
 
 if __name__ == '__main__':
-    spline_norm_example_plot()
+    # spline_norm_example_plot()
     mod = BSNIPModel()
-    example_reconstruction(mod)
+    # example_reconstruction(mod)
     e = EvalBSNIP(mod)
-    correlation_plots(e.data)
+    # correlation_plots(e.data)
     model_spl_scatter_hist(e.data)
-    wf = WFIRSTEval(mod)
-    example_wf_reconstruction(wf)
-    wfirst_snf_spl_scatter_hist(wf.data)
-
+    # wf = WFIRSTEval(mod)
+    # example_wf_reconstruction(wf)
+    # wfirst_spl_scatter_hist(wf.data)
